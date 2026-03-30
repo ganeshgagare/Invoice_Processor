@@ -1,0 +1,432 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply box-border;
+}
+
+html,
+body,
+#root {
+  @apply h-full;
+}
+
+body {
+  @apply m-0 font-sans antialiased bg-gradient-to-br from-gray-50 via-gray-50 to-blue-50;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+.bg-scene-auth,
+.bg-scene-dashboard {
+  position: relative;
+  isolation: isolate;
+}
+
+.bg-scene-auth::before,
+.bg-scene-dashboard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-scene-auth::before {
+  background-image: url('./assets/backgrounds/auth-orbs.svg');
+  opacity: 0.78;
+}
+
+.bg-scene-dashboard::before {
+  background-image: url('./assets/backgrounds/dashboard-mesh.svg');
+  opacity: 0.68;
+}
+
+.scene-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Animated Background Patterns */
+@keyframes drift {
+  0%, 100% {
+    transform: translateX(0px) translateY(0px);
+  }
+  50% {
+    transform: translateX(50px) translateY(30px);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-20px) rotate(120deg);
+  }
+  66% {
+    transform: translateY(-10px) rotate(240deg);
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-gentle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rotate-in-3d {
+  from {
+    opacity: 0;
+    transform: rotateX(60deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(0deg) scale(1);
+  }
+}
+
+@keyframes flip-card {
+  0% {
+    transform: perspective(1000px) rotateY(0);
+  }
+  100% {
+    transform: perspective(1000px) rotateY(360deg);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    text-shadow: 0 0 5px rgba(102, 126, 234, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(102, 126, 234, 0.8), 0 0 30px rgba(118, 75, 162, 0.6);
+  }
+}
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes morph {
+  0% {
+    border-radius: 60% 40% 30% 70%;
+  }
+  50% {
+    border-radius: 30% 60% 70% 40%;
+  }
+  100% {
+    border-radius: 60% 40% 30% 70%;
+  }
+}
+
+@keyframes grid-animation {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 100px 100px;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out;
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1.5s ease-in-out infinite;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+.animate-rotate-in-3d {
+  animation: rotate-in-3d 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-flip-card {
+  animation: flip-card 6s infinite linear;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-float-up {
+  animation: float-up 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-drift {
+  animation: drift 6s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-morph {
+  animation: morph 8s ease-in-out infinite;
+}
+
+/* 3D Effects */
+.perspective {
+  perspective: 1200px;
+}
+
+.hover-lift {
+  @apply transition-all duration-300 hover:-translate-y-2;
+}
+
+.hover-3d {
+  @apply transition-all duration-300;
+  transform-style: preserve-3d;
+}
+
+.hover-3d:hover {
+  transform: translateY(-8px) rotateX(8px);
+}
+
+/* Glass Morphism */
+.glassmorphism {
+  @apply bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl;
+}
+
+.glass-effect {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl;
+}
+
+/* Gradient Text */
+.gradient-text {
+  @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+}
+
+.gradient-text-animated {
+  @apply bg-gradient-to-r from-primary via-secondary to-pink-500 bg-clip-text text-transparent animate-glow-pulse;
+  background-size: 300% 300%;
+  animation: gradientShift 3s ease infinite, glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Interactive Buttons */
+.btn-glow {
+  @apply relative overflow-hidden;
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 40px rgba(102, 126, 234, 0.6);
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1);
+  transform-origin: 50%;
+  animation: ripple 0.6s ease-out;
+}
+
+.btn-ripple:active::after {
+  animation: ripple 0.6s ease-out;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-xl font-semibold 
+           hover:shadow-2xl hover:shadow-primary/40 hover:-translate-y-1 hover:scale-105
+           transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed
+           active:translate-y-0 active:shadow-lg active:scale-100
+           relative overflow-hidden btn-glow;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn-primary:hover::before {
+    left: 100%;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-white text-primary border-2 border-primary rounded-xl font-semibold 
+           hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 hover:shadow-xl hover:shadow-primary/20
+           transition-all duration-300 hover:-translate-y-1 hover:scale-105 active:translate-y-0;
+  }
+
+  .btn-danger {
+    @apply px-6 py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-xl font-semibold 
+           hover:from-red-600 hover:to-rose-600 hover:shadow-2xl hover:shadow-red-500/40 hover:-translate-y-1 hover:scale-105
+           transition-all duration-300 active:translate-y-0 active:shadow-lg btn-glow;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none 
+           focus:border-primary focus:shadow-xl focus:shadow-primary/20
+           transition-all duration-300 bg-white hover:border-gray-300 hover:shadow-md;
+  }
+
+  .card {
+    @apply bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500
+           border border-gray-100 hover:border-primary/30 hover:bg-gradient-to-br hover:from-white hover:to-blue-50/30
+           transform hover:scale-105;
+    perspective: 1000px;
+  }
+
+  .form-group {
+    @apply mb-6;
+  }
+
+  .form-label {
+    @apply block mb-3 text-sm font-bold text-gray-800 uppercase tracking-widest;
+  }
+
+  .section-header {
+    @apply text-4xl font-black mb-10 animate-fade-in-up gradient-text-animated;
+  }
+
+  /* Icon Animations */
+  .icon-spin {
+    @apply animate-spin;
+  }
+
+  .icon-bounce {
+    @apply animate-bounce-slow;
+  }
+
+  .icon-float {
+    @apply animate-float;
+  }
+
+  /* Status Badges */
+  .status-badge {
+    @apply px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap shadow-lg;
+    transition: all 0.3s ease;
+  }
+
+  .status-badge:hover {
+    transform: scale(1.1) rotateZ(5deg);
+  }
+
+  /* Interactive Elements */
+  .interactive-element {
+    @apply transition-all duration-300 cursor-pointer;
+    transform-style: preserve-3d;
+  }
+
+  .interactive-element:hover {
+    transform: translateY(-4px) scale(1.02);
+  }
+}
+

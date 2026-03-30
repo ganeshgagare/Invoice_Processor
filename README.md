@@ -1,1 +1,351 @@
-# Invoice_Processor
+# Invoice Processor - AI-Powered Invoice Extraction
+
+A full-stack application for extracting invoice data using Google Gemini AI. Users can upload invoices (PDF or images), get AI-powered data extraction, and download formatted HTML reports.
+
+## Features
+
+✅ **User Authentication** - Register, login with JWT tokens
+✅ **Invoice Upload** - Support for PDF, JPEG, PNG, WebP formats
+✅ **AI Extraction** - Using Google Gemini API for intelligent data extraction
+✅ **Custom Prompts** - Add additional instructions for processing
+✅ **HTML Reports** - Beautiful, downloadable HTML formatted reports
+✅ **Invoice Management** - View, download, and delete invoices
+✅ **Responsive Design** - Works on desktop and mobile devices
+
+## Tech Stack
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL
+- **Authentication**: JWT with Passlib
+- **AI**: Google Generative AI (Gemini)
+- **File Handling**: Aiofiles
+- **CORS**: FastAPI CORS middleware
+
+### Frontend
+- **Framework**: React 18
+- **Build Tool**: Vite (10x faster than CRA)
+- **Styling**: Tailwind CSS (utility-first)
+- **Routing**: React Router v6
+- **HTTP Client**: Axios
+- **State Management**: React Context API
+
+## Prerequisites
+
+- Python 3.8+
+- Node.js 14+
+- PostgreSQL database
+- Google Gemini API key
+- Git
+
+## Setup Instructions
+
+### 1. Backend Setup
+
+#### Step 1a: Create a .env file
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `.env` and add your configuration:
+```
+DATABASE_URL=postgresql://username:password@localhost:5432/invoice_db
+SECRET_KEY=your-super-secret-key-change-this-in-production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+#### Step 1b: Create PostgreSQL Database
+
+```bash
+createdb invoice_db
+```
+
+Or in PostgreSQL:
+```sql
+CREATE DATABASE invoice_db;
+```
+
+#### Step 1c: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+#### Step 1d: Run Database Migrations (if needed)
+
+The tables are created automatically when you start the server.
+
+#### Step 1e: Start Backend Server
+
+```bash
+python main.py
+```
+
+Server will run at `http://localhost:8000`
+- API Documentation: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### 2. Frontend Setup
+
+#### Step 2a: Create .env file
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Edit `.env`:
+```
+VITE_API_URL=http://localhost:8000/api
+```
+
+#### Step 2b: Install Dependencies
+
+```bash
+npm install
+```
+
+#### Step 2c: Start Frontend Server
+
+```bash
+npm run dev
+```
+
+Frontend will run at `http://localhost:5173`
+
+## API Endpoints
+
+### Authentication
+
+- `POST /api/auth/register` - Register a new user
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "full_name": "John Doe"
+  }
+  ```
+
+- `POST /api/auth/login` - Login user
+  ```
+  email=user@example.com&password=password123
+  ```
+
+- `GET /api/auth/me` - Get current user info (requires token)
+
+### Invoices
+
+- `POST /api/invoices/upload` - Upload invoice file
+  ```
+  Required: file (multipart/form-data)
+  Optional: user_prompt (form-data)
+  ```
+
+- `GET /api/invoices/list` - Get user's invoices
+  ```
+  Query params: skip=0, limit=10
+  ```
+
+- `GET /api/invoices/{invoice_id}` - Get specific invoice details
+
+- `GET /api/invoices/{invoice_id}/html` - Get HTML report
+
+- `DELETE /api/invoices/{invoice_id}` - Delete invoice
+
+## Getting Gemini API Key
+
+1. Visit [Google AI Studio](https://aistudio.google.com/)
+2. Click "Get API key"
+3. Create a new API key
+4. Add it to your `.env` file
+
+## Usage Flow
+
+1. **Register/Login**: Create an account or login
+2. **Upload Invoice**: Upload a PDF or image file with an optional prompt
+3. **Processing**: The AI processes the invoice using Gemini
+4. **View Report**: Preview the extracted data in HTML format
+5. **Download**: Download the HTML report for records
+
+## Project Structure
+
+```
+invoice-processor/
+├── backend/
+│   ├── routes/
+│   │   ├── auth.py
+│   │   └── invoices.py
+│   ├── utils/
+│   │   ├── gemini.py
+│   │   └── html_generator.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── auth.py
+│   ├── config.py
+│   ├── database.py
+│   ├── main.py
+│   ├── requirements.txt
+│   └── .env.example
+│
+├── frontend/
+│   ├── index.html           (Vite entry point)
+│   ├── src/
+│   │   ├── main.jsx         (React root - Vite)
+│   │   ├── App.jsx
+│   │   ├── index.css        (Tailwind CSS)
+│   │   ├── components/
+│   │   │   └── ProtectedRoute.jsx
+│   │   ├── pages/
+│   │   │   ├── Auth.jsx
+│   │   │   └── Dashboard.jsx
+│   │   ├── services/
+│   │   │   └── api.js
+│   │   └── contexts/
+│   │       └── AuthContext.js
+│   ├── vite.config.js       (NEW)
+│   ├── tailwind.config.js   (NEW)
+│   ├── postcss.config.js    (NEW)
+│   ├── package.json
+│   └── .env.example
+│
+├── docker-compose.yml
+└── Documentation files...
+```
+
+## Features in Detail
+
+### Authentication System
+- JWT token-based authentication
+- Password hashing with bcrypt
+- Token refresh mechanism
+- Protected routes
+
+### Invoice Processing
+- Multi-format support (PDF, JPEG, PNG, WebP)
+- AI-powered data extraction using Gemini
+- Custom processing prompts
+- Error handling and status tracking
+
+### Data Extraction
+The AI extracts:
+- Invoice metadata (number, date, due date)
+- Vendor information
+- Bill-to details
+- Line items (description, quantity, price)
+- Totals (subtotal, tax, total amount)
+- Payment terms and notes
+
+### HTML Report Generation
+- Professional styling
+- Responsive design
+- Print-friendly layout
+- Raw JSON data display
+- Error reporting
+
+## Error Handling
+
+The application includes comprehensive error handling:
+- File validation
+- Invalid upload types rejection
+- User authorization checks
+- API error responses
+- Frontend error notifications
+
+## Security Features
+
+- JWT token authentication
+- Password hashing with bcrypt
+- SQL injection prevention (SQLAlchemy ORM)
+- File upload validation
+- CORS protection
+- Authorization checks on all routes
+
+## Performance Notes
+
+- File uploads up to 25MB
+- Async processing with FastAPI
+- Database indexing on user_id and invoice_id
+- Caching of user sessions
+- Optimized React rendering
+
+## Troubleshooting
+
+### Backend Issues
+
+**Database Connection Error**
+```
+Check DATABASE_URL in .env
+Ensure PostgreSQL is running
+```
+
+**Gemini API Error**
+```
+Verify GEMINI_API_KEY is valid
+Check API quota in Google Cloud Console
+```
+
+**Port Already in Use**
+```
+Change port in main.py or kill process using port 8000
+```
+
+### Frontend Issues
+
+**API Connection Error**
+```
+Check REACT_APP_API_URL in .env
+Ensure backend is running on http://localhost:8000
+```
+
+**Module Not Found**
+```
+Delete node_modules and package-lock.json
+Run npm install again
+```
+
+## Default Ports
+
+- **Backend**: 8000
+- **Frontend**: 5173 (Vite)
+- **PostgreSQL**: 5432
+
+## Deployment
+
+### Backend Deployment (Heroku Example)
+```bash
+heroku create app-name
+heroku addons:create heroku-postgresql:hobby-dev
+git push heroku main
+```
+
+### Frontend Deployment (Vercel Example)
+```bash
+vercel
+```
+
+## Future Enhancements
+
+- [ ] Batch invoice processing
+- [ ] Advanced filter and search
+- [ ] Invoice templates
+- [ ] Integration with accounting software
+- [ ] Two-factor authentication
+- [ ] Export to CSV/Excel
+- [ ] Email notifications
+- [ ] Mobile app
+
+## License
+
+MIT
+
+## Support
+
+For issues and questions, please create an issue in the repository.
+
+## Contributing
+
+Contributions are welcome! Please create a pull request with your changes.
