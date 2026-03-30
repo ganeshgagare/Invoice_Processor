@@ -1,9 +1,23 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const envApiUrl = (import.meta.env.VITE_API_URL || '').trim();
+
+const deriveRenderApiUrl = () => {
+  if (typeof window === 'undefined') return '';
+  const host = window.location.hostname;
+  if (!host.endsWith('.onrender.com')) return '';
+  // Common pattern: <project>-web.onrender.com -> <project>-api.onrender.com
+  const apiHost = host.replace(/-web(?=\.onrender\.com$)/, '-api');
+  return `https://${apiHost}/api`;
+};
+
+const API_BASE_URL = envApiUrl || deriveRenderApiUrl() || 'http://localhost:8000/api';
+
+console.log('[api] Using base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 20000,
 });
 
 // Add token to requests
