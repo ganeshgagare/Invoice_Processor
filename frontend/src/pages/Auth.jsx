@@ -23,7 +23,7 @@ export const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('[Login] Login failed:', err);
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      setError(err.response?.data?.detail || err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
