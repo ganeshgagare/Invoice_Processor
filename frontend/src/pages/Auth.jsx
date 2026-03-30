@@ -30,7 +30,7 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4 relative overflow-hidden perspective bg-scene-auth">
+    <div className="h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-3 sm:p-4 relative overflow-hidden perspective bg-scene-auth">
       {/* Animated floating background elements */}
       <div className="absolute top-0 left-0 w-screen h-screen overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-full blur-3xl animate-float" style={{animation: 'float 8s ease-in-out infinite'}}></div>
@@ -45,17 +45,17 @@ export const Login = () => {
       }}></div>
 
       {/* Login Card with 3D perspective */}
-      <div className="card w-full max-w-md p-10 animate-rotate-in-3d relative z-10 shadow-2xl hover-3d scene-content">
-        <div className="text-center mb-10">
-          <div className="text-7xl mb-4 animate-float" style={{animation: 'float 3s ease-in-out infinite'}}>🔐</div>
-          <h1 className="text-5xl font-black gradient-text-animated mb-3">Invoice Processor</h1>
-          <p className="text-gray-600 text-base font-semibold tracking-wide">✨ AI-Powered Intelligence</p>
+      <div className="card w-full max-w-md p-6 sm:p-8 animate-rotate-in-3d relative z-10 shadow-2xl hover-3d scene-content">
+        <div className="text-center mb-6 sm:mb-7">
+          <div className="text-5xl sm:text-6xl mb-2 sm:mb-3 animate-float" style={{animation: 'float 3s ease-in-out infinite'}}>🔐</div>
+          <h1 className="text-3xl sm:text-4xl font-black gradient-text-animated mb-2">Invoice Processor</h1>
+          <p className="text-gray-600 text-sm sm:text-base font-semibold tracking-wide">✨ AI-Powered Intelligence</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="form-group animate-float-up" style={{animationDelay: '0.1s'}}>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="form-group mb-0 animate-float-up" style={{animationDelay: '0.1s'}}>
             <label htmlFor="email" className="form-label flex items-center gap-2">
-              <span className="text-2xl">📧</span> Email Address
+              <span className="text-xl">📧</span> Email Address
             </label>
             <input
               type="email"
@@ -68,9 +68,9 @@ export const Login = () => {
             />
           </div>
 
-          <div className="form-group animate-float-up" style={{animationDelay: '0.2s'}}>
+          <div className="form-group mb-0 animate-float-up" style={{animationDelay: '0.2s'}}>
             <label htmlFor="password" className="form-label flex items-center gap-2">
-              <span className="text-2xl">🔑</span> Password
+              <span className="text-xl">🔑</span> Password
             </label>
             <input
               type="password"
@@ -84,21 +84,21 @@ export const Login = () => {
           </div>
 
           {error && (
-            <div className="mb-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 text-sm rounded-xl animate-scale-in shadow-lg">
+            <div className="mb-2 p-3 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 text-xs sm:text-sm rounded-xl animate-scale-in shadow-lg">
               <div className="flex items-center gap-3">
-                <span className="text-2xl">⚠️</span>
+                <span className="text-xl">⚠️</span>
                 <span className="font-semibold">{error}</span>
               </div>
             </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-lg font-bold mt-8 btn-ripple">
+          <button type="submit" disabled={loading} className="btn-primary w-full py-3 sm:py-4 text-base sm:text-lg font-bold mt-4 sm:mt-5 btn-ripple">
             {loading ? '⏳ Logging in...' : '🚀 Login Now'}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="my-8 relative">
+        <div className="my-5 sm:my-6 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-gray-300 to-transparent h-px top-1/2"></div>
           <div className="relative flex justify-center">
             <span className="bg-white px-4 text-gray-500 text-sm font-semibold">OR</span>
@@ -107,7 +107,7 @@ export const Login = () => {
 
         {/* Sign up link */}
         <div className="text-center animate-float-up" style={{animationDelay: '0.3s'}}>
-          <p className="text-gray-700 font-medium">
+          <p className="text-gray-700 font-medium text-sm sm:text-base">
             Don't have an account? 
             <a href="/register" className="text-primary font-bold hover:text-secondary transition-all duration-300 ml-2 hover:underline">
               Create one

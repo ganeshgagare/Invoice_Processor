@@ -17,23 +17,27 @@
   <rect width="1920" height="1280" fill="url(#bg)"/>
   <rect width="1920" height="1280" fill="url(#spot1)"/>
   <rect width="1920" height="1280" fill="url(#spot2)"/>
-  <g opacity="0.25" stroke="#A4B8F6" stroke-width="1">
-    <path d="M0 140H1920"/>
-    <path d="M0 280H1920"/>
-    <path d="M0 420H1920"/>
-    <path d="M0 560H1920"/>
-    <path d="M0 700H1920"/>
-    <path d="M0 840H1920"/>
-    <path d="M0 980H1920"/>
-    <path d="M0 1120H1920"/>
-    <path d="M180 0V1280"/>
-    <path d="M380 0V1280"/>
-    <path d="M580 0V1280"/>
-    <path d="M780 0V1280"/>
-    <path d="M980 0V1280"/>
-    <path d="M1180 0V1280"/>
-    <path d="M1380 0V1280"/>
-    <path d="M1580 0V1280"/>
-    <path d="M1780 0V1280"/>
+  <g opacity="0.18" stroke="#9AB0F7" stroke-width="2" fill="none">
+    <path d="M-120 210C250 140 500 330 870 280C1180 236 1460 120 2040 250"/>
+    <path d="M-100 580C280 490 540 720 910 670C1240 626 1520 500 2020 620"/>
+    <path d="M-140 950C250 880 520 1120 900 1060C1220 1010 1520 890 2020 980"/>
+  </g>
+  <g opacity="0.22" fill="#A4B8F6">
+    <circle cx="210" cy="190" r="3"/>
+    <circle cx="420" cy="260" r="2.5"/>
+    <circle cx="760" cy="230" r="2"/>
+    <circle cx="1080" cy="290" r="3"/>
+    <circle cx="1420" cy="210" r="2.5"/>
+    <circle cx="1690" cy="320" r="2"/>
+    <circle cx="300" cy="620" r="2"/>
+    <circle cx="620" cy="730" r="3"/>
+    <circle cx="980" cy="670" r="2.5"/>
+    <circle cx="1320" cy="760" r="2"/>
+    <circle cx="1650" cy="640" r="3"/>
+    <circle cx="250" cy="980" r="2.5"/>
+    <circle cx="560" cy="1080" r="2"/>
+    <circle cx="940" cy="1040" r="3"/>
+    <circle cx="1280" cy="1120" r="2"/>
+    <circle cx="1710" cy="1020" r="2.5"/>
   </g>
 </svg>

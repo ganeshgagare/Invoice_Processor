@@ -107,77 +107,69 @@ export const Dashboard = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 relative overflow-hidden bg-scene-dashboard">
-      {/* Animated background decorations */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-3xl animate-float" style={{animation: 'float 12s ease-in-out infinite'}}></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full blur-3xl animate-float" style={{animation: 'float 14s ease-in-out infinite', animationDelay: '-3s'}}></div>
-        <div className="absolute top-1/2 left-1/3 w-72 h-72 bg-gradient-to-br from-pink-300/10 to-transparent rounded-full blur-3xl animate-morph" style={{animation: 'morph 10s ease-in-out infinite'}}></div>
-      </div>
+  const getStatusBadgeClass = (status) => {
+    if (status === 'completed') return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+    if (status === 'processing') return 'bg-amber-100 text-amber-800 border border-amber-200';
+    if (status === 'failed') return 'bg-rose-100 text-rose-800 border border-rose-200';
+    return 'bg-sky-100 text-sky-800 border border-sky-200';
+  };
 
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary via-secondary to-purple-600 shadow-2xl sticky top-0 z-40 backdrop-blur-md bg-opacity-95 border-b-4 border-gradient-to-r border-primary/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
-          <div className="flex justify-between items-center">
-            <div className="animate-fade-in-up">
-              <h1 className="text-5xl font-black text-white mb-2 flex items-center gap-3">
-                <span className="text-6xl animate-float" style={{animation: 'float 3s ease-in-out infinite'}}>📄</span>
-                <span className="text-white drop-shadow-lg">Invoice Processor</span>
-              </h1>
-              <p className="text-white/90 text-sm font-bold uppercase tracking-widest">
-                ✨ Welcome, <span className="text-white">{user?.full_name}</span>
-              </p>
+  const getStatusText = (status) => {
+    if (status === 'completed') return 'Completed';
+    if (status === 'processing') return 'Processing';
+    if (status === 'failed') return 'Failed';
+    return 'Pending';
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 bg-scene-dashboard relative overflow-hidden">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-lg shadow-md">📄</div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-extrabold text-slate-900">Invoice Processor</h1>
+              <p className="text-xs sm:text-sm text-slate-500">Automated extraction workspace</p>
             </div>
-            <button 
-              onClick={logout} 
-              className="bg-white/20 hover:bg-white/40 text-white px-8 py-3 rounded-2xl font-bold transition-all duration-300 backdrop-blur border-2 border-white/50 hover:shadow-2xl hover:shadow-white/20 hover:-translate-y-1 hover:scale-110 active:scale-95"
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">User</span>
+              <span className="text-sm font-semibold text-slate-800">{user?.full_name}</span>
+            </div>
+            <button
+              onClick={logout}
+              className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 transition-colors"
             >
-              👋 Logout
+              Logout
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        {/* Upload Section */}
-        <section className="mb-16 animate-fade-in-up" style={{animationDelay: '0.1s'}}>
-          <div className="card p-10 shadow-2xl border-2 border-gradient-to-r from-primary/20 to-secondary/20 hover-3d relative overflow-hidden">
-            {/* Shine effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" style={{pointerEvents: 'none'}}></div>
-            
-            <div className="mb-10 relative">
-              <h2 className="section-header flex items-center gap-3">
-                <span className="text-5xl animate-bounce-slow">🚀</span>
-                <span>Process Invoice</span>
-              </h2>
-              <p className="text-gray-600 font-semibold text-lg">Enter custom instructions, upload your file, and watch AI work its magic</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        <section className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 mb-8">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Upload New Invoice</h2>
+              <p className="text-slate-600 mt-2">Upload a document and optionally provide extraction instructions.</p>
             </div>
 
-            {/* Prompt Input */}
-            <div className="mb-10 animate-scale-in relative" style={{animationDelay: '0.2s'}}>
-              <label htmlFor="userPrompt" className="form-label flex items-center gap-3">
-                💬 Custom AI Instructions 
-                <span className="text-xs bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-full font-bold tracking-wide">Optional</span>
+            <div className="mb-6">
+              <label htmlFor="userPrompt" className="block mb-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
+                Custom Instructions <span className="ml-2 text-xs font-semibold text-slate-500 normal-case">Optional</span>
               </label>
               <textarea
                 id="userPrompt"
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="e.g., Extract only vendor information, focus on line items, extract payment terms, etc."
+                placeholder="Example: focus on invoice total, vendor name, due date, and line items."
                 rows="4"
-                className="input-field resize-none hover-3d"
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-none"
               />
-              <p className="text-xs text-gray-600 mt-3 flex items-center gap-2 font-semibold">
-                💡 <span>Leave blank to extract all information, or specify exactly what you need</span>
-              </p>
             </div>
 
-            {/* File Selection */}
-            <div className="bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 rounded-3xl p-16 text-center mb-10 border-4 border-dashed border-primary/30 hover:border-primary/60 transition-all duration-300 animate-scale-in hover-3d relative overflow-hidden group" style={{animationDelay: '0.3s'}}>
-              {/* Animated background */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23667eea\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")'}}></div>
-
+            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 sm:p-10 text-center bg-slate-50">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -186,128 +178,129 @@ export const Dashboard = () => {
                 disabled={uploading}
                 className="hidden"
               />
-              <div className="mb-6 relative">
-                <div className="text-8xl mb-6 animate-float drop-shadow-lg" style={{animation: 'float 4s ease-in-out infinite'}}>📁</div>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="btn-primary text-xl px-12 py-5 btn-ripple btn-glow relative"
-                >
-                  {uploading ? '⏳ Processing...' : '📂 Choose Invoice File'}
-                </button>
-              </div>
+              <div className="text-5xl mb-3">📁</div>
+              <p className="text-slate-700 font-semibold mb-4">Drop a file or choose manually</p>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="btn-primary px-7 py-3 text-base"
+              >
+                {uploading ? 'Processing...' : 'Choose Invoice File'}
+              </button>
+
               {selectedFile && (
-                <p className="text-gray-800 text-lg font-bold animate-slide-in-right relative">
-                  ✅ Selected: <span className="text-primary font-black">{selectedFile.name}</span>
+                <p className="mt-4 text-sm font-semibold text-slate-700">
+                  Selected: <span className="text-primary">{selectedFile.name}</span>
                 </p>
               )}
             </div>
 
-            {/* Upload Button */}
             {selectedFile && (
               <button
                 onClick={handleUploadWithPrompt}
                 disabled={uploading}
-                className="btn-primary w-full py-5 text-2xl font-black shadow-2xl hover:shadow-3xl animate-scale-in btn-ripple btn-glow relative overflow-hidden group"
+                className="btn-primary w-full mt-6 py-4 text-lg"
               >
-                {uploading ? '⏳ Processing Invoice...' : '🎯 Process with Gemini AI'}
+                {uploading ? 'Processing Invoice...' : 'Process with Gemini AI'}
               </button>
             )}
 
             {error && (
-              <div className="mt-8 p-6 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 text-lg rounded-2xl animate-scale-in shadow-lg flex items-center gap-4 font-semibold">
-                <span className="text-4xl">⚠️</span>
-                <span>{error}</span>
+              <div className="mt-5 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">
+                {error}
               </div>
             )}
           </div>
+
+          <aside className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Today</p>
+              <p className="text-3xl font-black text-slate-900 mt-1">{invoices.length}</p>
+              <p className="text-sm text-slate-600">Invoices in your workspace</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Supported Files</h3>
+              <ul className="space-y-2 text-sm text-slate-600 font-medium">
+                <li>PDF documents</li>
+                <li>JPG and JPEG images</li>
+                <li>PNG and WebP images</li>
+              </ul>
+            </div>
+            <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl shadow-sm p-5">
+              <h3 className="text-sm font-bold uppercase tracking-wide mb-2">Pro Tip</h3>
+              <p className="text-sm text-white/90">Use short, specific prompts to improve extraction quality and consistency.</p>
+            </div>
+          </aside>
         </section>
 
-        {/* Invoices Section */}
-        <section className="animate-fade-in-up relative" style={{animationDelay: '0.2s'}}>
-          <h2 className="section-header flex items-center gap-3">
-            <span className="text-5xl animate-bounce-slow">📋</span>
-            Your Processed Invoices
-          </h2>
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Processed Invoices</h2>
+          </div>
 
           {loading ? (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4 animate-bounce-slow">⏳</div>
-              <p className="text-gray-600 font-medium">Loading your invoices...</p>
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-600 font-semibold">
+              Loading your invoices...
             </div>
           ) : invoices.length === 0 ? (
-            <div className="text-center py-16 card p-12">
-              <div className="text-6xl mb-4">🎉</div>
-              <p className="text-gray-600 font-medium mb-2">No invoices yet</p>
-              <p className="text-gray-500 text-sm">Upload your first invoice above to get started with AI extraction!</p>
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+              <div className="text-4xl mb-3">📄</div>
+              <p className="text-slate-700 font-semibold">No invoices yet</p>
+              <p className="text-sm text-slate-500 mt-1">Your uploaded invoices will appear here.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {invoices.map((invoice, index) => (
-                <div 
-                  key={invoice.id} 
-                  className="card p-6 hover:-translate-y-2 hover:shadow-2xl group animate-fade-in-up cursor-pointer"
-                  style={{animationDelay: `${0.1 + index * 0.05}s`}}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-bold text-gray-800 flex-1 break-words group-hover:text-primary transition-colors duration-300">
-                      📄 {invoice.original_filename}
-                    </h3>
-                    <span className={`ml-2 px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${
-                      invoice.status === 'completed' ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 shadow-lg shadow-green-200/50' :
-                      invoice.status === 'processing' ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-700 shadow-lg shadow-yellow-200/50 animate-pulse-gentle' :
-                      invoice.status === 'failed' ? 'bg-gradient-to-r from-red-100 to-rose-100 text-red-700 shadow-lg shadow-red-200/50' :
-                      'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 shadow-lg shadow-blue-200/50'
-                    }`}>
-                      {invoice.status === 'completed' && '✅ Ready'}
-                      {invoice.status === 'processing' && '⏳ Processing'}
-                      {invoice.status === 'failed' && '❌ Failed'}
-                      {invoice.status === 'pending' && '⏱️ Pending'}
-                    </span>
-                  </div>
+            <div className="space-y-4">
+              {invoices.map((invoice) => (
+                <article key={invoice.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 sm:p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-500">{new Date(invoice.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</p>
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate mt-1">{invoice.original_filename}</h3>
+                      {invoice.error_message && (
+                        <p className="mt-2 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2">
+                          {invoice.error_message}
+                        </p>
+                      )}
+                    </div>
 
-                  <p className="text-xs text-gray-500 mb-4 flex items-center gap-2">
-                    <span>📅</span>
-                    {new Date(invoice.created_at).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'short', 
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold w-fit ${getStatusBadgeClass(invoice.status)}`}>
+                        {getStatusText(invoice.status)}
+                      </span>
 
-                  {invoice.error_message && (
-                    <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4 border-l-4 border-red-500">
-                      {invoice.error_message}
-                    </p>
-                  )}
-
-                  <div className="flex gap-3 flex-wrap">
-                    {invoice.status === 'completed' && (
-                      <>
+                      <div className="flex gap-2 flex-wrap sm:justify-end">
+                        {invoice.status === 'completed' && (
+                          <>
+                            <button
+                              onClick={() => handlePreviewInvoice(invoice)}
+                              className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold hover:bg-slate-200 transition-colors"
+                            >
+                              Preview
+                            </button>
+                            <button
+                              onClick={() => handleDownloadHTML(invoice.id)}
+                              className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors"
+                            >
+                              Download
+                            </button>
+                          </>
+                        )}
                         <button
-                          onClick={() => handlePreviewInvoice(invoice)}
-                          className="flex-1 btn-primary text-sm py-3 font-semibold hover:shadow-lg transition-all duration-300"
+                          onClick={() => handleDeleteInvoice(invoice.id)}
+                          className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors"
                         >
-                          👁️ Preview
+                          Delete
                         </button>
-                        <button
-                          onClick={() => handleDownloadHTML(invoice.id)}
-                          className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-sm py-3 rounded-xl font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-green-500/30 hover:-translate-y-0.5"
-                        >
-                          ⬇️ Download
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => handleDeleteInvoice(invoice.id)}
-                      className="flex-1 btn-danger text-sm py-3 font-semibold hover:shadow-lg transition-all duration-300"
-                    >
-                      🗑️ Delete
-                    </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           )}

@@ -84,7 +84,7 @@ export const Home = () => {
               </div>
             </div>
 
-            <div className="relative animate-rotate-in-3d">
+            <div className="relative animate-rotate-in-3d pb-6 lg:pb-0">
               <div className="card p-8 hover-3d shadow-2xl border border-primary/20">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-black text-slate-900">Invoice Pipeline</h3>
@@ -106,7 +106,10 @@ export const Home = () => {
                 </div>
               </div>
 
-              <div className="absolute -right-6 -bottom-8 card p-5 w-56 animate-float-up" style={{ animationDelay: '0.25s' }}>
+              <div
+                className="relative mt-5 ml-auto card p-5 w-full max-w-xs sm:w-72 lg:w-72 animate-float-up"
+                style={{ animationDelay: '0.25s' }}
+              >
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Processed Today</p>
                 <p className="text-4xl font-black text-primary mt-1">1,248</p>
                 <p className="text-sm font-semibold text-emerald-600 mt-1">+18.2% from yesterday</p>
@@ -144,7 +147,7 @@ export const Home = () => {
         </section>
 
         <section id="workflow" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <div className="card p-10 md:p-12 bg-gradient-to-br from-slate-900 via-primary to-secondary text-white overflow-hidden relative">
+          <div className="rounded-3xl p-10 md:p-12 bg-gradient-to-br from-slate-900 via-primary to-secondary text-white overflow-hidden relative shadow-2xl border border-white/10">
             <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 35%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.2), transparent 35%)' }}></div>
             <div className="relative z-10">
               <h3 className="text-4xl font-black mb-4">From upload to output in under 60 seconds</h3>
@@ -169,8 +172,8 @@ export const Home = () => {
             <p className="text-sm font-black uppercase tracking-[0.16em] text-primary">Pricing</p>
             <h3 className="text-4xl font-black text-slate-900 mt-2">Simple, transparent plans</h3>
           </div>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="card p-8">
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto items-stretch">
+            <div className="card p-8 flex flex-col h-full">
               <p className="text-sm font-bold text-slate-500 uppercase tracking-wide">Starter</p>
               <p className="text-5xl font-black text-slate-900 mt-4">$0</p>
               <p className="text-slate-600 font-medium mt-2">Perfect for trial and small teams.</p>
@@ -179,9 +182,16 @@ export const Home = () => {
                 <li>• Prompt-based extraction</li>
                 <li>• Downloadable HTML results</li>
               </ul>
-              <Link to="/register" className="btn-primary w-full text-center mt-8">Get started</Link>
+              <div className="mt-auto pt-8">
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-colors"
+                >
+                  Get started
+                </Link>
+              </div>
             </div>
-            <div className="card p-8 border-2 border-primary/40 relative overflow-hidden">
+            <div className="card p-8 border-2 border-primary/40 relative overflow-hidden flex flex-col h-full">
               <span className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-black bg-primary text-white">Popular</span>
               <p className="text-sm font-bold text-slate-500 uppercase tracking-wide">Growth</p>
               <p className="text-5xl font-black text-slate-900 mt-4">$49</p>
@@ -191,7 +201,14 @@ export const Home = () => {
                 <li>• Priority processing lane</li>
                 <li>• Multi-user team workspace</li>
               </ul>
-              <Link to="/register" className="btn-primary w-full text-center mt-8">Start growth plan</Link>
+              <div className="mt-auto pt-8">
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-colors"
+                >
+                  Start growth plan
+                </Link>
+              </div>
             </div>
           </div>
         </section>
