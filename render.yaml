@@ -21,7 +21,7 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "30"
       - key: CORS_ORIGINS
-        value: https://invoice-processor-web.onrender.com,http://localhost:3000,http://localhost:3001,http://localhost:5173
+        value: "*"
       - key: GEMINI_API_KEY
         sync: false
 
