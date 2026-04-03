@@ -20,10 +20,49 @@ const api = axios.create({
   timeout: 20000,
 });
 
+const createSafeStorage = () => {
+  const memoryStore = new Map();
+
+  const getBrowserStorage = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    getItem: (key) => {
+      const storage = getBrowserStorage();
+      if (storage) return storage.getItem(key);
+      return memoryStore.has(key) ? memoryStore.get(key) : null;
+    },
+    setItem: (key, value) => {
+      const storage = getBrowserStorage();
+      if (storage) {
+        storage.setItem(key, value);
+        return;
+      }
+      memoryStore.set(key, value);
+    },
+    removeItem: (key) => {
+      const storage = getBrowserStorage();
+      if (storage) {
+        storage.removeItem(key);
+        return;
+      }
+      memoryStore.delete(key);
+    },
+  };
+};
+
+const authStorage = createSafeStorage();
+
 // Add token to requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = authStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,8 +76,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      authStorage.removeItem('access_token');
+      authStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

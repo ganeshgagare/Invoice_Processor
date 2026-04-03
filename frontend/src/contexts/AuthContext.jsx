@@ -3,27 +3,78 @@ import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
 
+const createSafeStorage = () => {
+  const memoryStore = new Map();
+
+  const getBrowserStorage = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
+  };
+
+  return {
+    getItem: (key) => {
+      const storage = getBrowserStorage();
+      if (storage) return storage.getItem(key);
+      return memoryStore.has(key) ? memoryStore.get(key) : null;
+    },
+    setItem: (key, value) => {
+      const storage = getBrowserStorage();
+      if (storage) {
+        storage.setItem(key, value);
+        return;
+      }
+      memoryStore.set(key, value);
+    },
+    removeItem: (key) => {
+      const storage = getBrowserStorage();
+      if (storage) {
+        storage.removeItem(key);
+        return;
+      }
+      memoryStore.delete(key);
+    },
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const authStorage = React.useMemo(() => createSafeStorage(), []);
+
   useEffect(() => {
     console.log('[AuthProvider] useEffect - Loading stored auth state');
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('access_token');
+    const storedUser = authStorage.getItem('user');
+    const token = authStorage.getItem('access_token');
 
-    console.log('[AuthProvider] Found stored user:', !!storedUser, 'token:', !!token);
-    if (storedUser && token) {
-      try {
-        const user = JSON.parse(storedUser);
-        console.log('[AuthProvider] Setting user from storage:', user);
-        setUser(user);
-      } catch (e) {
-        console.error('[AuthProvider] Failed to parse stored user:', e);
+    const bootstrapAuth = async () => {
+      console.log('[AuthProvider] Found stored user:', !!storedUser, 'token:', !!token);
+      if (storedUser && token) {
+        try {
+          const user = JSON.parse(storedUser);
+          console.log('[AuthProvider] Validating stored auth with backend...');
+          const response = await authAPI.getMe();
+          const freshUser = response.data || user;
+          console.log('[AuthProvider] Stored auth is valid:', freshUser);
+          authStorage.setItem('user', JSON.stringify(freshUser));
+          setUser(freshUser);
+        } catch (error) {
+          console.warn('[AuthProvider] Stored auth is invalid, clearing session:', error);
+          authStorage.removeItem('access_token');
+          authStorage.removeItem('user');
+          setUser(null);
+        }
       }
-    }
-    setLoading(false);
+
+      setLoading(false);
+    };
+
+    bootstrapAuth();
   }, []);
 
   const register = async (email, password, fullName) => {
@@ -47,7 +98,7 @@ export const AuthProvider = ({ children }) => {
       const { access_token } = response.data;
 
       // Store token immediately
-      localStorage.setItem('access_token', access_token);
+      authStorage.setItem('access_token', access_token);
       console.log('[AuthContext.login] Token stored');
 
       // Fetch user data
@@ -57,8 +108,8 @@ export const AuthProvider = ({ children }) => {
       const userData = userResponse.data;
       
       // Store and update user state synchronously
-      localStorage.setItem('user', JSON.stringify(userData));
-      console.log('[AuthContext.login] User stored in localStorage');
+      authStorage.setItem('user', JSON.stringify(userData));
+      console.log('[AuthContext.login] User stored in sessionStorage');
       setUser(userData);
       console.log('[AuthContext.login] User state updated');
 
@@ -66,8 +117,8 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('[AuthContext.login] Login failed:', err);
       // Clear any partial auth state on error
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
+      authStorage.removeItem('access_token');
+      authStorage.removeItem('user');
       const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
       setError(errorMessage);
       throw err;
@@ -75,8 +126,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
+    authStorage.removeItem('access_token');
+    authStorage.removeItem('user');
     setUser(null);
   };
 

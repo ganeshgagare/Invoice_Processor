@@ -1,10 +1,38 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Login, Register } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { Home } from './pages/Home';
+
+const AuthRedirect = () => {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-primary">
+        <div className="text-white text-2xl font-semibold">Loading...</div>
+      </div>
+    );
+  }
+
+  return <Navigate to="/login" replace />;
+};
+
+const GuestOnlyRoute = ({ children }) => {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-primary">
+        <div className="text-white text-2xl font-semibold">Loading...</div>
+      </div>
+    );
+  }
+
+  return children;
+};
 
 function App() {
   React.useEffect(() => {
@@ -15,8 +43,23 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<Home />} />
+          <Route
+            path="/login"
+            element={
+              <GuestOnlyRoute>
+                <Login />
+              </GuestOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <GuestOnlyRoute>
+                <Register />
+              </GuestOnlyRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={
@@ -25,8 +68,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Home />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<AuthRedirect />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

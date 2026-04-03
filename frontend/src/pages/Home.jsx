@@ -30,12 +30,12 @@ export const Home = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link to="/login" className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 border border-slate-300 hover:border-primary/50 hover:text-primary transition-all">
+            <button type="button" onClick={() => navigate('/login')} className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-700 border border-slate-300 hover:border-primary/50 hover:text-primary transition-all">
               Log in
-            </Link>
-            <Link to="/register" className="btn-primary text-sm px-5 py-2.5 btn-ripple">
+            </button>
+            <button type="button" onClick={() => navigate('/register')} className="btn-primary text-sm px-5 py-2.5 btn-ripple">
               Start free
-            </Link>
+            </button>
           </div>
         </div>
       </header>
@@ -57,14 +57,14 @@ export const Home = () => {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link to="/register" className="btn-primary text-base px-8 py-4 btn-ripple">
-                  Create account
-                </Link>
+                <button type="button" onClick={() => navigate('/login')} className="btn-primary text-base px-8 py-4 btn-ripple">
+                  Log in to dashboard
+                </button>
                 <button
-                  onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
+                  onClick={() => navigate('/login')}
                   className="btn-secondary text-base px-8 py-4"
                 >
-                  {isAuthenticated ? 'Go to dashboard' : 'See live workflow'}
+                  {isAuthenticated ? 'Continue login' : 'See live workflow'}
                 </button>
               </div>
 
@@ -156,12 +156,12 @@ export const Home = () => {
                 Every extracted file remains downloadable and reviewable in your dashboard.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link to="/register" className="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-100 transition-colors">
+                <button type="button" onClick={() => navigate('/register')} className="bg-white text-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-100 transition-colors">
                   Try it now
-                </Link>
-                <Link to="/login" className="border border-white/60 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors">
+                </button>
+                <button type="button" onClick={() => navigate('/login')} className="border border-white/60 text-white px-6 py-3 rounded-xl font-bold hover:bg-white/10 transition-colors">
                   Sign in
-                </Link>
+                </button>
               </div>
             </div>
           </div>

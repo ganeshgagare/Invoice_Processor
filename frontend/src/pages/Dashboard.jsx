@@ -1,9 +1,13 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { invoiceAPI } from '../services/api';
 
+const USER_PROMPT_MAX_LENGTH = 500;
+
 export const Dashboard = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -12,19 +16,21 @@ export const Dashboard = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-  console.log('[Dashboard] Mounted - user:', user);
+  const safeInvoices = Array.isArray(invoices) ? invoices : [];
 
   const loadInvoices = async () => {
     setLoading(true);
     try {
-      console.log('[Dashboard] Loading invoices...');
       const response = await invoiceAPI.listInvoices();
-      console.log('[Dashboard] Invoices loaded:', response.data);
-      setInvoices(response.data.invoices || []);
+      const nextInvoices = response?.data?.invoices;
+      setInvoices(Array.isArray(nextInvoices) ? nextInvoices : []);
+      setError(null);
     } catch (err) {
-      console.error('[Dashboard] Failed to load invoices:', err);
+      setInvoices([]);
       setError('Failed to load invoices: ' + (err.response?.data?.detail || err.message));
     } finally {
       setLoading(false);
@@ -32,7 +38,6 @@ export const Dashboard = () => {
   };
 
   React.useEffect(() => {
-    console.log('[Dashboard] useEffect - loading invoices');
     loadInvoices();
   }, []);
 
@@ -40,7 +45,6 @@ export const Dashboard = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      console.log('[Dashboard] File selected:', file.name);
     }
   };
 
@@ -50,45 +54,55 @@ export const Dashboard = () => {
       return;
     }
 
+    const trimmedPrompt = userPrompt.trim();
+    if (trimmedPrompt.length > USER_PROMPT_MAX_LENGTH) {
+      alert(`Custom instructions can be up to ${USER_PROMPT_MAX_LENGTH} characters only.`);
+      return;
+    }
+
     setUploading(true);
-    console.log('[Dashboard] Starting upload with prompt:', userPrompt);
-    
     try {
       const response = await invoiceAPI.uploadInvoice(selectedFile, userPrompt);
-      if (response.data.status === 'completed') {
+      if (response?.data?.status === 'completed') {
         alert('✅ Invoice processed successfully!');
-        setUserPrompt('');
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        loadInvoices();
       } else {
-        alert('⚠️ Invoice processing failed: ' + response.data.message);
+        alert('⚠️ Invoice processing failed: ' + (response?.data?.message || 'Unknown error'));
       }
+
+      setUserPrompt('');
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await loadInvoices();
     } catch (err) {
-      console.error('[Dashboard] Upload error:', err);
       alert('Error uploading invoice: ' + (err.response?.data?.detail || err.message));
     } finally {
       setUploading(false);
     }
   };
 
-  const handleFileUpload = (e) => {
-    handleFileSelect(e);
-  };
-
   const handlePreviewInvoice = async (invoice) => {
     setSelectedInvoice(invoice);
     setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewHtml('');
+
+    try {
+      const response = await invoiceAPI.getInvoiceHTML(invoice.id);
+      setPreviewHtml(response?.data?.html || '<p>No preview available.</p>');
+    } catch (err) {
+      setPreviewHtml('<p>Error loading invoice preview</p>');
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleDeleteInvoice = async (id) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      try {
-        await invoiceAPI.deleteInvoice(id);
-        loadInvoices();
-      } catch (err) {
-        alert('Error deleting invoice: ' + (err.response?.data?.detail || err.message));
-      }
+    if (!window.confirm('Are you sure you want to delete this invoice?')) return;
+    try {
+      await invoiceAPI.deleteInvoice(id);
+      await loadInvoices();
+    } catch (err) {
+      alert('Error deleting invoice: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -121,25 +135,46 @@ export const Dashboard = () => {
     return 'Pending';
   };
 
+  const completedCount = safeInvoices.filter((invoice) => invoice?.status === 'completed').length;
+  const processingCount = safeInvoices.filter((invoice) => invoice?.status === 'processing').length;
+  const failedCount = safeInvoices.filter((invoice) => invoice?.status === 'failed').length;
+
+  const formatInvoiceDate = (rawDate) => {
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return 'Date unavailable';
+    return parsed.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 bg-scene-dashboard relative overflow-hidden">
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-lg shadow-md">📄</div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-extrabold text-slate-900">Invoice Processor</h1>
-              <p className="text-xs sm:text-sm text-slate-500">Automated extraction workspace</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-3 min-w-0 text-left"
+            aria-label="Go to landing page"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-lg shadow-md shrink-0">📄</div>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 truncate">Invoice Processor</h1>
+              <p className="text-xs sm:text-sm text-slate-500 truncate">Automated extraction workspace</p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200">
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 max-w-[240px]">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">User</span>
-              <span className="text-sm font-semibold text-slate-800">{user?.full_name}</span>
+              <span className="text-sm font-semibold text-slate-800 truncate">{user?.full_name}</span>
             </div>
             <button
               onClick={logout}
-              className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 transition-colors"
+              className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 transition-colors whitespace-nowrap"
             >
               Logout
             </button>
@@ -147,158 +182,192 @@ export const Dashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-        <section className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 mb-8">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Upload New Invoice</h2>
-              <p className="text-slate-600 mt-2">Upload a document and optionally provide extraction instructions.</p>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6">
+        <section className="rounded-3xl bg-gradient-to-r from-slate-900 via-primary to-secondary text-white shadow-xl border border-white/10 overflow-hidden">
+          <div className="px-5 sm:px-7 py-6 sm:py-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/75">Workspace</p>
+              <h2 className="text-2xl sm:text-3xl font-black mt-1">Welcome back, {user?.full_name || 'User'}</h2>
+              <p className="text-white/85 mt-1 text-sm sm:text-base">Your dashboard is ready. Upload an invoice or review recent processing results below.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center min-w-0 sm:min-w-[300px]">
+              <div className="rounded-2xl bg-white/10 backdrop-blur px-3 py-3 border border-white/10">
+                <p className="text-2xl font-black">{safeInvoices.length}</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/75 mt-1">Total</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur px-3 py-3 border border-white/10">
+                <p className="text-2xl font-black text-emerald-200">{completedCount}</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/75 mt-1">Done</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 backdrop-blur px-3 py-3 border border-white/10">
+                <p className="text-2xl font-black text-amber-200">{processingCount + failedCount}</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/75 mt-1">Active</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.55fr)_360px] gap-6 items-start">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 lg:p-7">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Upload Invoice</h2>
+                <p className="text-slate-600 mt-1">Upload a document and optionally provide extraction instructions.</p>
+              </div>
+              <div className="sm:text-right text-sm text-slate-500">
+                <p className="font-semibold text-slate-700">Recommended</p>
+                <p>PDF, JPG, PNG, WebP</p>
+              </div>
             </div>
 
-            <div className="mb-6">
-              <label htmlFor="userPrompt" className="block mb-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
-                Custom Instructions <span className="ml-2 text-xs font-semibold text-slate-500 normal-case">Optional</span>
-              </label>
-              <textarea
-                id="userPrompt"
-                value={userPrompt}
-                onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="Example: focus on invoice total, vendor name, due date, and line items."
-                rows="4"
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-none"
-              />
-            </div>
+            <div className="grid lg:grid-cols-[1fr_200px] gap-4 lg:gap-5 items-stretch">
+              <div className="h-full flex flex-col">
+                <label htmlFor="userPrompt" className="block mb-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
+                  Custom Instructions <span className="ml-2 text-xs font-semibold text-slate-500 normal-case">Optional</span>
+                </label>
+                <textarea
+                  id="userPrompt"
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  placeholder="Example: focus on invoice total, vendor name, due date, and line items."
+                  rows="4"
+                  maxLength={USER_PROMPT_MAX_LENGTH}
+                  className="w-full flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-none min-h-[150px]"
+                />
+                <div className="mt-2 text-right text-xs font-semibold text-slate-500">
+                  {userPrompt.length}/{USER_PROMPT_MAX_LENGTH} characters
+                </div>
+              </div>
 
-            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 sm:p-10 text-center bg-slate-50">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".pdf,.jpg,.jpeg,.png,.webp"
-                disabled={uploading}
-                className="hidden"
-              />
-              <div className="text-5xl mb-3">📁</div>
-              <p className="text-slate-700 font-semibold mb-4">Drop a file or choose manually</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="btn-primary px-7 py-3 text-base"
-              >
-                {uploading ? 'Processing...' : 'Choose Invoice File'}
-              </button>
-
-              {selectedFile && (
-                <p className="mt-4 text-sm font-semibold text-slate-700">
-                  Selected: <span className="text-primary">{selectedFile.name}</span>
-                </p>
-              )}
+              <div className="border border-dashed border-slate-300 rounded-2xl p-4 bg-slate-50 flex flex-col justify-between h-full min-h-[186px]">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  disabled={uploading}
+                  className="hidden"
+                />
+                <div>
+                  <div className="text-3xl mb-2">📁</div>
+                  <p className="text-slate-700 font-semibold">Drop a file or choose manually</p>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Keep the file small and the prompt specific for best results.</p>
+                </div>
+                <div className="mt-4">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="btn-primary w-full px-4 py-2.5 text-sm"
+                  >
+                    {uploading ? 'Processing...' : 'Choose File'}
+                  </button>
+                  {selectedFile && (
+                    <p className="mt-3 text-xs sm:text-sm font-semibold text-slate-700 break-all">
+                      Selected: <span className="text-primary">{selectedFile.name}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {selectedFile && (
               <button
                 onClick={handleUploadWithPrompt}
                 disabled={uploading}
-                className="btn-primary w-full mt-6 py-4 text-lg"
+                className="btn-primary w-full mt-5 py-3.5 text-base sm:text-lg"
               >
-                {uploading ? 'Processing Invoice...' : 'Process with Gemini AI'}
+                {uploading ? 'Processing Invoice...' : 'Process Invoice'}
               </button>
             )}
 
             {error && (
-              <div className="mt-5 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">
+              <div className="mt-4 p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 text-sm font-semibold">
                 {error}
               </div>
             )}
           </div>
 
-          <aside className="space-y-4">
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Today</p>
-              <p className="text-3xl font-black text-slate-900 mt-1">{invoices.length}</p>
-              <p className="text-sm text-slate-600">Invoices in your workspace</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+          <aside className="grid sm:grid-cols-2 xl:grid-cols-1 gap-4 items-stretch self-stretch">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 h-full flex flex-col">
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3">Supported Files</h3>
-              <ul className="space-y-2 text-sm text-slate-600 font-medium">
-                <li>PDF documents</li>
-                <li>JPG and JPEG images</li>
-                <li>PNG and WebP images</li>
-              </ul>
+              <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 font-medium flex-1 content-start">
+                <span className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">PDF</span>
+                <span className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">JPG</span>
+                <span className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">PNG</span>
+                <span className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">WebP</span>
+              </div>
             </div>
-            <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl shadow-sm p-5">
+            <div className="bg-gradient-to-br from-primary to-secondary text-white rounded-2xl shadow-sm p-4 sm:p-5 h-full flex flex-col justify-between min-h-[160px]">
               <h3 className="text-sm font-bold uppercase tracking-wide mb-2">Pro Tip</h3>
-              <p className="text-sm text-white/90">Use short, specific prompts to improve extraction quality and consistency.</p>
+              <p className="text-sm text-white/90 leading-relaxed">Use short prompts like invoice total, due date, vendor, and line items for more accurate extraction.</p>
             </div>
           </aside>
         </section>
 
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Processed Invoices</h2>
+          <div className="flex items-end justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Processed Invoices</h2>
+              <p className="text-sm text-slate-600 mt-1">Quick access to previews, downloads, and deletions.</p>
+            </div>
+            <p className="text-sm font-semibold text-slate-500 whitespace-nowrap">{safeInvoices.length} total</p>
           </div>
 
           {loading ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-600 font-semibold">
               Loading your invoices...
             </div>
-          ) : invoices.length === 0 ? (
+          ) : safeInvoices.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
               <div className="text-4xl mb-3">📄</div>
               <p className="text-slate-700 font-semibold">No invoices yet</p>
               <p className="text-sm text-slate-500 mt-1">Your uploaded invoices will appear here.</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {invoices.map((invoice) => (
-                <article key={invoice.id} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 sm:p-5">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {safeInvoices.map((invoice) => (
+                <article key={invoice?.id || `${invoice?.original_filename || 'invoice'}-${invoice?.created_at || Math.random()}`} className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 sm:p-5 flex flex-col justify-between gap-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm text-slate-500">{new Date(invoice.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</p>
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate mt-1">{invoice.original_filename}</h3>
-                      {invoice.error_message && (
-                        <p className="mt-2 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2">
-                          {invoice.error_message}
-                        </p>
-                      )}
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {formatInvoiceDate(invoice?.created_at)}
+                      </p>
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate mt-1">{invoice?.original_filename || 'Unnamed invoice'}</h3>
                     </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${getStatusBadgeClass(invoice?.status)}`}>
+                      {getStatusText(invoice?.status)}
+                    </span>
+                  </div>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold w-fit ${getStatusBadgeClass(invoice.status)}`}>
-                        {getStatusText(invoice.status)}
-                      </span>
+                  {invoice?.error_message && (
+                    <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                      {invoice.error_message}
+                    </p>
+                  )}
 
-                      <div className="flex gap-2 flex-wrap sm:justify-end">
-                        {invoice.status === 'completed' && (
-                          <>
-                            <button
-                              onClick={() => handlePreviewInvoice(invoice)}
-                              className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold hover:bg-slate-200 transition-colors"
-                            >
-                              Preview
-                            </button>
-                            <button
-                              onClick={() => handleDownloadHTML(invoice.id)}
-                              className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors"
-                            >
-                              Download
-                            </button>
-                          </>
-                        )}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {invoice?.status === 'completed' && (
+                      <>
                         <button
-                          onClick={() => handleDeleteInvoice(invoice.id)}
-                          className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors"
+                          onClick={() => handleDownloadHTML(invoice.id)}
+                          className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors"
                         >
-                          Delete
+                          Download
                         </button>
-                      </div>
-                    </div>
+                        <button
+                          onClick={() => handlePreviewInvoice(invoice)}
+                          className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-semibold hover:bg-slate-200 transition-colors"
+                        >
+                          Preview
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => handleDeleteInvoice(invoice?.id)}
+                      className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition-colors"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </article>
               ))}
@@ -308,73 +377,74 @@ export const Dashboard = () => {
       </main>
 
       {showPreview && selectedInvoice && (
-        <InvoicePreview
-          invoice={selectedInvoice}
-          onClose={() => setShowPreview(false)}
-        />
-      )}
-    </div>
-  );
-};
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm p-4 sm:p-6 flex items-center justify-center" onClick={() => setShowPreview(false)}>
+          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-start sm:items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Invoice Preview</p>
+                <h3 className="text-lg sm:text-2xl font-black text-slate-900 truncate">{selectedInvoice.original_filename}</h3>
+                <p className="text-sm text-slate-500 mt-1">{selectedInvoice.status === 'completed' ? 'Processed invoice output' : 'Invoice details'}</p>
+              </div>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="shrink-0 w-10 h-10 rounded-xl bg-slate-100 text-slate-600 font-black hover:bg-slate-200 transition-colors"
+                aria-label="Close preview"
+              >
+                ×
+              </button>
+            </div>
 
-const InvoicePreview = ({ invoice, onClose }) => {
-  const [html, setHtml] = useState('');
-  const [loading, setLoading] = useState(true);
+            <div className="grid lg:grid-cols-[320px_1fr] flex-1 min-h-0">
+              <aside className="border-b lg:border-b-0 lg:border-r border-slate-200 bg-slate-50 p-5 sm:p-6 overflow-auto">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-2xl bg-white border border-slate-200 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Status</p>
+                    <p className={`mt-1 inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(selectedInvoice.status)}`}>
+                      {getStatusText(selectedInvoice.status)}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white border border-slate-200 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Created</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {formatInvoiceDate(selectedInvoice.created_at)}
+                    </p>
+                  </div>
+                </div>
 
-  React.useEffect(() => {
-    const loadHTML = async () => {
-      try {
-        const response = await invoiceAPI.getInvoiceHTML(invoice.id);
-        setHtml(response.data.html);
-      } catch (err) {
-        console.error('Error loading HTML:', err);
-        setHtml('<p>Error loading invoice preview</p>');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadHTML();
-  }, [invoice.id]);
+                <div className="mt-4 rounded-2xl bg-white border border-slate-200 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Prompt</p>
+                  <p className="mt-2 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {selectedInvoice.user_prompt || 'No custom prompt was provided.'}
+                  </p>
+                </div>
 
-  return (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in-up"
-      onClick={onClose}
-    >
-      <div 
-        className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 animate-scale-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center p-8 bg-gradient-to-r from-primary/5 to-secondary/5 border-b border-gray-200 rounded-t-2xl">
-          <h2 className="text-2xl font-bold gradient-text flex items-center gap-3">
-            <span className="text-3xl">📄</span>
-            Invoice Preview
-          </h2>
-          <button 
-            onClick={onClose} 
-            className="text-3xl text-gray-600 hover:text-red-500 hover:scale-110 transition-all duration-300 p-2 hover:bg-red-50 rounded-lg"
-          >
-            ✕
-          </button>
-        </div>
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl mb-4 animate-bounce-slow">📄</div>
-              <p className="text-gray-600 font-medium">Loading preview...</p>
+                {selectedInvoice.error_message && (
+                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-rose-700">Error</p>
+                    <p className="mt-2 text-sm text-rose-700 leading-relaxed">{selectedInvoice.error_message}</p>
+                  </div>
+                )}
+              </aside>
+
+              <section className="min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0 overflow-auto bg-slate-100 p-3 sm:p-4">
+                  {previewLoading ? (
+                    <div className="h-full min-h-[60vh] flex items-center justify-center text-slate-600 font-semibold bg-white rounded-2xl border border-slate-200">
+                      Loading preview...
+                    </div>
+                  ) : (
+                    <iframe
+                      srcDoc={previewHtml}
+                      title="Invoice Preview"
+                      className="w-full h-full min-h-[60vh] border border-slate-200 rounded-2xl bg-white shadow-sm"
+                    />
+                  )}
+                </div>
+              </section>
             </div>
           </div>
-        ) : (
-          <div className="flex-1 overflow-auto p-6 bg-gray-50">
-            <iframe
-              srcDoc={html}
-              title="Invoice Preview"
-              className="w-full h-full border-0 rounded-lg"
-              style={{ minHeight: '500px' }}
-            />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -4,13 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 export const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-  
-  // Fallback check: if state says not authenticated, check localStorage
-  const hasToken = localStorage.getItem('access_token');
-  const hasUser = localStorage.getItem('user');
-  const isAuthenticatedFallback = isAuthenticated || (hasToken && hasUser);
 
-  console.log('[ProtectedRoute] Checking auth - isAuthenticated:', isAuthenticated, 'loading:', loading, 'fallback:', isAuthenticatedFallback);
+  console.log('[ProtectedRoute] Checking auth - isAuthenticated:', isAuthenticated, 'loading:', loading);
 
   if (loading) {
     console.log('[ProtectedRoute] Still loading...');
@@ -21,7 +16,7 @@ export const ProtectedRoute = ({ children }) => {
     );
   }
 
-  if (!isAuthenticatedFallback) {
+  if (!isAuthenticated) {
     console.log('[ProtectedRoute] Not authenticated, redirecting to login');
     return <Navigate to="/login" />;
   }

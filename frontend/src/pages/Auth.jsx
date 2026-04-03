@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,8 +19,7 @@ export const Login = () => {
       console.log('[Login] Attempting login with:', email);
       const result = await login(email, password);
       console.log('[Login] Login successful, user:', result);
-      console.log('[Login] Navigating to /dashboard');
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('[Login] Login failed:', err);
       setError(err.response?.data?.detail || err.message || 'Login failed. Please try again.');
@@ -109,9 +108,13 @@ export const Login = () => {
         <div className="text-center animate-float-up" style={{animationDelay: '0.3s'}}>
           <p className="text-gray-700 font-medium text-sm sm:text-base">
             Don't have an account? 
-            <a href="/register" className="text-primary font-bold hover:text-secondary transition-all duration-300 ml-2 hover:underline">
+            <button
+              type="button"
+              onClick={() => navigate('/register', { replace: true })}
+              className="text-primary font-bold hover:text-secondary transition-all duration-300 ml-2 hover:underline"
+            >
               Create one
-            </a>
+            </button>
           </p>
         </div>
       </div>
@@ -142,7 +145,11 @@ export const Register = () => {
 
     try {
       await register(email, password, fullName);
-      navigate('/login');
+      console.log('[Register] Account created, showing success message');
+      alert('✅ Account Created Successfully!\nRedirecting to login...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 500);
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -223,7 +230,12 @@ export const Register = () => {
         </form>
 
         <div className="text-center mt-6 text-gray-600 text-sm">
-          <p>Already have an account? <a href="/login" className="text-primary font-semibold hover:underline">Login here</a></p>
+          <p>
+            Already have an account?{' '}
+            <button type="button" onClick={() => navigate('/login', { replace: true })} className="text-primary font-semibold hover:underline">
+              Login here
+            </button>
+          </p>
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ from utils.gemini import extract_data_from_invoice
 from utils.html_generator import generate_html_report
 
 router = APIRouter(prefix="/api/invoices", tags=["invoices"])
+USER_PROMPT_MAX_LENGTH = 500
 
 # Create uploads directory
 UPLOAD_DIR = Path("uploads")
@@ -25,6 +26,13 @@ async def upload_invoice(
     db: Session = Depends(get_db),
 ):
     """Upload an invoice file and process it with Gemini AI"""
+
+    normalized_prompt = user_prompt.strip() if user_prompt else ""
+    if len(normalized_prompt) > USER_PROMPT_MAX_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Custom instructions cannot exceed {USER_PROMPT_MAX_LENGTH} characters",
+        )
 
     # Validate file type
     allowed_types = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
@@ -52,7 +60,7 @@ async def upload_invoice(
         filename=filename,
         original_filename=file.filename,
         file_path=str(file_path),
-        user_prompt=user_prompt if user_prompt else None,
+        user_prompt=normalized_prompt if normalized_prompt else None,
         status="processing",
     )
     db.add(db_invoice)
@@ -62,7 +70,7 @@ async def upload_invoice(
     # Process with Gemini
     try:
         extracted_data = await extract_data_from_invoice(
-            file_path, user_prompt
+            file_path, normalized_prompt
         )
         
         # Generate HTML report
