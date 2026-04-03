@@ -13,12 +13,26 @@ const deriveRenderApiUrl = () => {
 
 const API_BASE_URL = envApiUrl || deriveRenderApiUrl() || 'http://localhost:8000/api';
 
-console.log('[api] Using base URL:', API_BASE_URL);
+const normalizeBase = (url) => (url || '').trim().replace(/\/+$/, '');
+const primaryBase = normalizeBase(API_BASE_URL);
+const fallbackBase = primaryBase.endsWith('/api') ? primaryBase.slice(0, -4) : '';
+
+console.log('[api] Using primary base URL:', primaryBase);
+if (fallbackBase) {
+  console.log('[api] Using fallback base URL:', fallbackBase);
+}
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: primaryBase,
   timeout: 20000,
 });
+
+const apiFallback = fallbackBase
+  ? axios.create({
+      baseURL: fallbackBase,
+      timeout: 20000,
+    })
+  : null;
 
 const createSafeStorage = () => {
   const memoryStore = new Map();
@@ -59,43 +73,73 @@ const createSafeStorage = () => {
 
 const authStorage = createSafeStorage();
 
-// Add token to requests
-api.interceptors.request.use(
-  (config) => {
-    const token = authStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+const attachInterceptors = (client) => {
+  client.interceptors.request.use(
+    (config) => {
+      const token = authStorage.getItem('access_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
 
-// Handle response errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      authStorage.removeItem('access_token');
-      authStorage.removeItem('user');
-      window.location.href = '/login';
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        authStorage.removeItem('access_token');
+        authStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+  );
+};
+
+attachInterceptors(api);
+if (apiFallback) {
+  attachInterceptors(apiFallback);
+}
+
+const requestWithBaseFallback = async (config) => {
+  try {
+    return await api.request(config);
+  } catch (error) {
+    const shouldRetry = apiFallback && error?.response?.status === 404;
+    if (!shouldRetry) {
+      throw error;
+    }
+
+    console.warn('[api] Primary base returned 404, retrying with fallback base URL');
+    return apiFallback.request(config);
   }
-);
+};
 
 export const authAPI = {
   register: (email, password, fullName) =>
-    api.post('/auth/register', { email, password, full_name: fullName }),
+    requestWithBaseFallback({
+      url: '/auth/register',
+      method: 'post',
+      data: { email, password, full_name: fullName },
+    }),
   login: (email, password) => {
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
-    return api.post('/auth/login', formData, { 
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' } 
+    return requestWithBaseFallback({
+      url: '/auth/login',
+      method: 'post',
+      data: formData,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   },
-  getMe: () => api.get('/auth/me'),
+  getMe: () =>
+    requestWithBaseFallback({
+      url: '/auth/me',
+      method: 'get',
+    }),
 };
 
 export const invoiceAPI = {
@@ -103,15 +147,34 @@ export const invoiceAPI = {
     const formData = new FormData();
     formData.append('file', file);
     if (userPrompt) formData.append('user_prompt', userPrompt);
-    return api.post('/invoices/upload', formData, {
+    return requestWithBaseFallback({
+      url: '/invoices/upload',
+      method: 'post',
+      data: formData,
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   listInvoices: (skip = 0, limit = 10) =>
-    api.get('/invoices/list', { params: { skip, limit } }),
-  getInvoice: (id) => api.get(`/invoices/${id}`),
-  getInvoiceHTML: (id) => api.get(`/invoices/${id}/html`),
-  deleteInvoice: (id) => api.delete(`/invoices/${id}`),
+    requestWithBaseFallback({
+      url: '/invoices/list',
+      method: 'get',
+      params: { skip, limit },
+    }),
+  getInvoice: (id) =>
+    requestWithBaseFallback({
+      url: `/invoices/${id}`,
+      method: 'get',
+    }),
+  getInvoiceHTML: (id) =>
+    requestWithBaseFallback({
+      url: `/invoices/${id}/html`,
+      method: 'get',
+    }),
+  deleteInvoice: (id) =>
+    requestWithBaseFallback({
+      url: `/invoices/${id}`,
+      method: 'delete',
+    }),
 };
 
 export default api;
