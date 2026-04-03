@@ -14,25 +14,38 @@ const deriveRenderApiUrl = () => {
 const API_BASE_URL = envApiUrl || deriveRenderApiUrl() || 'http://localhost:8000/api';
 
 const normalizeBase = (url) => (url || '').trim().replace(/\/+$/, '');
-const primaryBase = normalizeBase(API_BASE_URL);
-const fallbackBase = primaryBase.endsWith('/api') ? primaryBase.slice(0, -4) : '';
+const uniqueBases = (values) => {
+  const seen = new Set();
+  const list = [];
+  for (const value of values) {
+    const normalized = normalizeBase(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    list.push(normalized);
+  }
+  return list;
+};
 
-console.log('[api] Using primary base URL:', primaryBase);
-if (fallbackBase) {
-  console.log('[api] Using fallback base URL:', fallbackBase);
-}
+const baseCandidates = uniqueBases([
+  API_BASE_URL,
+  envApiUrl,
+  deriveRenderApiUrl(),
+  'https://invoice-processor-api.onrender.com/api',
+  normalizeBase(API_BASE_URL).endsWith('/api') ? normalizeBase(API_BASE_URL).slice(0, -4) : '',
+  'https://invoice-processor-api.onrender.com',
+  'http://localhost:8000/api',
+  'http://localhost:8000',
+]);
 
-const api = axios.create({
-  baseURL: primaryBase,
-  timeout: 20000,
-});
+console.log('[api] Base URL candidates:', baseCandidates);
 
-const apiFallback = fallbackBase
-  ? axios.create({
-      baseURL: fallbackBase,
-      timeout: 20000,
-    })
-  : null;
+const apiClients = baseCandidates.map((baseURL) =>
+  axios.create({
+    baseURL,
+    // Keep each attempt short so fallback can happen quickly.
+    timeout: 10000,
+  })
+);
 
 const createSafeStorage = () => {
   const memoryStore = new Map();
@@ -98,23 +111,38 @@ const attachInterceptors = (client) => {
   );
 };
 
-attachInterceptors(api);
-if (apiFallback) {
-  attachInterceptors(apiFallback);
+for (const client of apiClients) {
+  attachInterceptors(client);
 }
 
 const requestWithBaseFallback = async (config) => {
-  try {
-    return await api.request(config);
-  } catch (error) {
-    const shouldRetry = apiFallback && error?.response?.status === 404;
-    if (!shouldRetry) {
-      throw error;
-    }
+  let lastError = null;
 
-    console.warn('[api] Primary base returned 404, retrying with fallback base URL');
-    return apiFallback.request(config);
+  for (let i = 0; i < apiClients.length; i += 1) {
+    const client = apiClients[i];
+    const base = baseCandidates[i];
+
+    try {
+      return await client.request(config);
+    } catch (error) {
+      lastError = error;
+      const status = error?.response?.status;
+      const isNetworkOrTimeout = !error?.response;
+      const isLikelyRouteMismatch = status === 404 || status === 405;
+      const shouldTryNext = i < apiClients.length - 1 && (isNetworkOrTimeout || isLikelyRouteMismatch);
+
+      if (!shouldTryNext) {
+        throw error;
+      }
+
+      console.warn(`[api] Request failed on ${base}, trying next base URL`, {
+        message: error?.message,
+        status,
+      });
+    }
   }
+
+  throw lastError;
 };
 
 export const authAPI = {
@@ -177,4 +205,4 @@ export const invoiceAPI = {
     }),
 };
 
-export default api;
+export default apiClients[0];
