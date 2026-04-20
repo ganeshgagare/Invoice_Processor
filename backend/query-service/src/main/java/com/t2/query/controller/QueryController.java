@@ -29,10 +29,6 @@ public class QueryController {
         } catch (Exception e) {
             log.error("Query failed: {}", e.getMessage(), e);
             String msg = e.getMessage() != null ? e.getMessage() : "Query execution failed";
-            if (msg.contains("429 Too Many Requests")) {
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("message", "Gemini is rate-limited right now. Retry in 30-60 seconds, or use rule-based prompts like 'top 5 by unit_price descending' or 'quantity < 5'."));
-            }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", msg));
         }
     }

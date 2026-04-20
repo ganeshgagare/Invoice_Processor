@@ -110,7 +110,7 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
     ports:
-      - "8084:8080"
+      - "8080:8080"
     depends_on:
       ingestion-service:
         condition: service_healthy

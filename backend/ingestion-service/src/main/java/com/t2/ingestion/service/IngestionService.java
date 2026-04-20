@@ -16,22 +16,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStreamReader;
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Parses JSON/CSV/XLSX and stores each upload as a real typed PostgreSQL table
- * named  report_<id>  with proper TEXT/NUMERIC/BOOLEAN columns.
- *
- * This is the key architectural fix: Gemini can now generate real SQL like
- *   SELECT product_code, unit_price FROM report_3 WHERE unit_price > 500
- * against a real relational schema — not JSONB key-value hacks.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -40,37 +28,54 @@ public class IngestionService {
     private final JdbcTemplate jdbc;
     private final ObjectMapper  objectMapper;
 
-    // ── Public API ─────────────────────────────────────────────────────────
+    // ── Upload ─────────────────────────────────────────────────────────────
 
     public UploadResponse ingest(MultipartFile file) throws Exception {
         String name = Objects.requireNonNullElse(file.getOriginalFilename(), "upload");
         log.info("Ingesting: {} ({} bytes)", name, file.getSize());
 
         List<Map<String, Object>> rows = parseFile(file, name);
-        if (rows.isEmpty()) throw new IllegalArgumentException("File contains no data rows");
+        if (rows.isEmpty()) throw new IllegalArgumentException("File contains no data rows.");
 
-        List<String> columns = new ArrayList<>(rows.get(0).keySet());
-        // Sanitise column names for PostgreSQL
-        List<String> safeColumns = columns.stream().map(this::safeName).collect(Collectors.toList());
+        // BUG FIX #1: Collect the UNION of all keys across ALL rows, not just row[0].
+        // This handles JSON where different rows have different fields (sparse data).
+        LinkedHashSet<String> allOrigKeys = new LinkedHashSet<>();
+        rows.forEach(r -> allOrigKeys.addAll(r.keySet()));
+        List<String> origCols = new ArrayList<>(allOrigKeys);
+        List<String> safeCols = origCols.stream().map(this::safeName).collect(Collectors.toList());
 
-        Map<String, String> colTypes = inferTypes(safeColumns, rows, columns);
-        log.info("Columns: {} | Types: {}", safeColumns, colTypes);
+        // Deduplicate safe names (e.g. "First Name" and "first_name" → same safe name)
+        Map<String, String> safeToOrig = new LinkedHashMap<>();
+        List<String> finalSafeCols = new ArrayList<>();
+        List<String> finalOrigCols = new ArrayList<>();
+        for (int i = 0; i < safeCols.size(); i++) {
+            String safe = safeCols.get(i);
+            if (!safeToOrig.containsKey(safe)) {
+                safeToOrig.put(safe, origCols.get(i));
+                finalSafeCols.add(safe);
+                finalOrigCols.add(origCols.get(i));
+            }
+        }
 
-        // Insert metadata
+        // Infer types using ALL rows and the UNION of columns
+        Map<String, String> colTypes = inferTypes(finalSafeCols, finalOrigCols, rows);
+        log.info("Columns ({}): {} | Types: {}", finalSafeCols.size(), finalSafeCols, colTypes);
+
+        // Insert metadata row
         Long reportId = jdbc.queryForObject(
             "INSERT INTO report_meta(file_name,row_count,col_count,columns_json,col_types_json,uploaded_at)" +
             " VALUES(?,?,?,?::jsonb,?::jsonb,?) RETURNING id",
-            Long.class, name, rows.size(), safeColumns.size(),
-            objectMapper.writeValueAsString(safeColumns),
+            Long.class, name, rows.size(), finalSafeCols.size(),
+            objectMapper.writeValueAsString(finalSafeCols),
             objectMapper.writeValueAsString(colTypes),
-            Timestamp.from(Instant.now()));
+            Instant.now());
         log.info("Created report_meta id={}", reportId);
 
-        createTable(reportId, safeColumns, colTypes);
-        insertRows(reportId, safeColumns, columns, colTypes, rows);
+        createTable(reportId, finalSafeCols, colTypes);
+        insertRows(reportId, finalSafeCols, finalOrigCols, colTypes, rows);
         log.info("Loaded {} rows into report_{}", rows.size(), reportId);
 
-        return new UploadResponse(reportId, name, rows.size(), safeColumns.size(), safeColumns, Instant.now());
+        return new UploadResponse(reportId, name, rows.size(), finalSafeCols.size(), finalSafeCols, Instant.now());
     }
 
     public List<ReportSummary> listAll() {
@@ -82,16 +87,13 @@ public class IngestionService {
                 rs.getTimestamp("uploaded_at").toInstant()));
     }
 
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> getMeta(Long reportId) {
+    public Map<String, Object> getMeta(Long id) {
         Map<String, Object> row = jdbc.queryForMap(
-            "SELECT file_name,row_count,col_count,columns_json,col_types_json FROM report_meta WHERE id=?",
-            reportId);
-        // Parse JSON strings back to lists/maps
+            "SELECT file_name,row_count,col_count,columns_json,col_types_json FROM report_meta WHERE id=?", id);
         try {
-            row.put("columns", objectMapper.readValue(row.get("columns_json").toString(), new TypeReference<List<String>>(){}));
+            row.put("columns",  objectMapper.readValue(row.get("columns_json").toString(),  new TypeReference<List<String>>(){}));
             row.put("colTypes", objectMapper.readValue(row.get("col_types_json").toString(), new TypeReference<Map<String,String>>(){}));
-        } catch (Exception e) { log.error("getMeta parse error", e); }
+        } catch (Exception e) { log.error("getMeta parse", e); }
         return row;
     }
 
@@ -104,87 +106,71 @@ public class IngestionService {
         for (String col : cols) {
             String pg = switch (types.getOrDefault(col, "TEXT")) {
                 case "NUMERIC" -> "NUMERIC";
-                case "BOOLEAN" -> "BOOLEAN";
-                case "TIMESTAMP" -> "TIMESTAMP";
                 default        -> "TEXT";
             };
             ddl.append(", ").append(qi(col)).append(" ").append(pg);
         }
         ddl.append(")");
-        log.debug("DDL: {}", ddl);
+        log.info("DDL: {}", ddl);
         jdbc.execute(ddl.toString());
     }
 
     private void insertRows(Long id, List<String> safeCols, List<String> origCols,
                              Map<String, String> types, List<Map<String, Object>> rows) {
-        String colList    = safeCols.stream().map(this::qi).collect(Collectors.joining(","));
-        String holders    = safeCols.stream().map(c -> "?").collect(Collectors.joining(","));
-        String sql        = "INSERT INTO report_" + id + "(" + colList + ") VALUES(" + holders + ")";
+        String colList  = safeCols.stream().map(this::qi).collect(Collectors.joining(","));
+        String holders  = safeCols.stream().map(c -> "?").collect(Collectors.joining(","));
+        String sql      = "INSERT INTO report_" + id + "(" + colList + ") VALUES(" + holders + ")";
+
         List<Object[]> batch = rows.stream().map(row -> {
             Object[] args = new Object[safeCols.size()];
             for (int i = 0; i < safeCols.size(); i++) {
-                Object v = row.get(origCols.get(i));  // use original key to get value
+                // BUG FIX #1b: row.get returns null if key missing → stored as NULL in DB (correct)
+                Object v = row.get(origCols.get(i));
                 args[i] = coerce(v, types.get(safeCols.get(i)));
             }
             return args;
         }).collect(Collectors.toList());
+
         jdbc.batchUpdate(sql, batch);
     }
 
-    // ── Type inference ─────────────────────────────────────────────────────
+    // ── Type inference — checks ALL rows ──────────────────────────────────
 
-    private Map<String, String> inferTypes(List<String> safeCols, List<Map<String, Object>> rows,
-                                            List<String> origCols) {
+    private Map<String, String> inferTypes(List<String> safeCols, List<String> origCols,
+                                            List<Map<String, Object>> rows) {
         Map<String, String> types = new LinkedHashMap<>();
         for (int idx = 0; idx < safeCols.size(); idx++) {
             String safe = safeCols.get(idx);
             String orig = origCols.get(idx);
-            boolean allNum = true, allBool = true, allTimestamp = true, hasVal = false;
+            boolean allNum = true, hasVal = false;
             for (Map<String, Object> row : rows) {
                 Object v = row.get(orig);
                 if (v == null || v.toString().isBlank()) continue;
                 hasVal = true;
-
-                if (!isBooleanValue(v)) {
-                    allBool = false;
-                }
-
-                if (v instanceof Number) {
-                    // keep numeric true
-                } else {
-                    try { Double.parseDouble(v.toString().replace(",", "")); }
-                    catch (NumberFormatException e) { allNum = false; }
-                }
-
-                if (!isTimestampValue(v)) {
-                    allTimestamp = false;
-                }
+                if (v instanceof Number) continue;           // already a number (from JSON/Excel)
+                // Check if string parses as number
+                String s = v.toString().trim().replace(",", "");
+                try { Double.parseDouble(s); }
+                catch (NumberFormatException e) { allNum = false; break; }
             }
-
-            String inferred = "TEXT";
-            if (hasVal) {
-                if (allBool) inferred = "BOOLEAN";
-                else if (allNum) inferred = "NUMERIC";
-                else if (allTimestamp) inferred = "TIMESTAMP";
-            }
-            types.put(safe, inferred);
+            types.put(safe, (hasVal && allNum) ? "NUMERIC" : "TEXT");
         }
         return types;
     }
 
     private Object coerce(Object val, String type) {
         if (val == null) return null;
+        if (val instanceof List || val instanceof Map) {
+            // Nested structures: store as JSON string
+            try { return objectMapper.writeValueAsString(val); } catch (Exception e) { return val.toString(); }
+        }
         String s = val.toString().trim();
         if (s.isBlank()) return null;
-        return switch (type) {
-            case "NUMERIC" -> {
-                if (val instanceof Number n) yield n.doubleValue();
-                try { yield Double.parseDouble(s.replace(",", "")); } catch (Exception e) { yield null; }
-            }
-            case "BOOLEAN" -> coerceBoolean(val);
-            case "TIMESTAMP" -> coerceTimestamp(val);
-            default -> s;
-        };
+        if ("NUMERIC".equals(type)) {
+            if (val instanceof Number n) return n.doubleValue();
+            try { return Double.parseDouble(s.replace(",", "")); } catch (Exception e) { return null; }
+        }
+        return s;
     }
 
     // ── File parsers ───────────────────────────────────────────────────────
@@ -194,20 +180,33 @@ public class IngestionService {
         if (lower.endsWith(".json"))  return parseJson(f);
         if (lower.endsWith(".csv"))   return parseCsv(f);
         if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return parseExcel(f);
-        throw new IllegalArgumentException("Unsupported type. Use JSON, CSV, or XLSX.");
+        throw new IllegalArgumentException("Unsupported type. Please use JSON, CSV, or XLSX.");
     }
 
     private List<Map<String, Object>> parseJson(MultipartFile f) throws Exception {
         byte[] b = f.getBytes(); int i = 0;
         while (i < b.length && Character.isWhitespace(b[i])) i++;
-        if (i < b.length && b[i] == '[') return objectMapper.readValue(b, new TypeReference<>(){});
-        return List.of(objectMapper.readValue(b, new TypeReference<>(){}));
+        if (i < b.length && b[i] == '[')
+            return objectMapper.readValue(b, new TypeReference<List<Map<String,Object>>>(){});
+        Map<String, Object> single = objectMapper.readValue(b, new TypeReference<Map<String,Object>>(){});
+        // If top-level object has a key whose value is an array of objects, use that
+        for (Map.Entry<String, Object> entry : single.entrySet()) {
+            if (entry.getValue() instanceof List<?> list && !list.isEmpty()
+                    && list.get(0) instanceof Map) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> nested = (List<Map<String, Object>>) list;
+                return nested;
+            }
+        }
+        return List.of(single);
     }
 
     private List<Map<String, Object>> parseCsv(MultipartFile f) throws Exception {
         List<Map<String, Object>> rows = new ArrayList<>();
         try (InputStreamReader r = new InputStreamReader(f.getInputStream());
-             CSVParser p = CSVFormat.DEFAULT.builder().setHeader().setSkipHeaderRecord(true).setTrim(true).build().parse(r)) {
+             CSVParser p = CSVFormat.DEFAULT.builder()
+                 .setHeader().setSkipHeaderRecord(true).setTrim(true)
+                 .setIgnoreEmptyLines(true).build().parse(r)) {
             for (CSVRecord rec : p) rows.add(new LinkedHashMap<>(rec.toMap()));
         }
         return rows;
@@ -235,8 +234,9 @@ public class IngestionService {
 
     private Object cellVal(Cell c) {
         return switch (c.getCellType()) {
-            case NUMERIC -> DateUtil.isCellDateFormatted(c) ? c.getLocalDateTimeCellValue().toString() : c.getNumericCellValue();
-            case BOOLEAN -> c.getBooleanCellValue();
+            case NUMERIC -> DateUtil.isCellDateFormatted(c)
+                ? c.getLocalDateTimeCellValue().toString() : c.getNumericCellValue();
+            case BOOLEAN -> String.valueOf(c.getBooleanCellValue());
             case FORMULA -> { try { yield c.getNumericCellValue(); } catch (Exception e) { yield c.getStringCellValue(); } }
             default -> c.getStringCellValue();
         };
@@ -244,49 +244,17 @@ public class IngestionService {
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    /** PostgreSQL-safe lowercase column name */
     String safeName(String raw) {
         if (raw == null || raw.isBlank()) return "col";
-        return raw.trim().toLowerCase()
-                  .replaceAll("[^a-z0-9_]", "_")
-                  .replaceAll("_+", "_")
-                  .replaceAll("^_|_$", "");
+        String s = raw.trim().toLowerCase()
+                      .replaceAll("[^a-z0-9_]", "_")
+                      .replaceAll("_+", "_")
+                      .replaceAll("^_+|_+$", "");
+        // Avoid reserved words
+        if (s.isBlank()) s = "col";
+        if (s.matches("\\d.*")) s = "c_" + s;
+        return s;
     }
 
-    /** Quoted identifier */
     private String qi(String name) { return "\"" + name.replace("\"", "") + "\""; }
-
-    private boolean isBooleanValue(Object v) {
-        if (v instanceof Boolean) return true;
-        String s = v.toString().trim().toLowerCase(Locale.ROOT);
-        return s.equals("true") || s.equals("false") || s.equals("yes") || s.equals("no") || s.equals("1") || s.equals("0");
-    }
-
-    private Object coerceBoolean(Object v) {
-        if (v instanceof Boolean b) return b;
-        String s = v.toString().trim().toLowerCase(Locale.ROOT);
-        if (s.equals("true") || s.equals("yes") || s.equals("1")) return true;
-        if (s.equals("false") || s.equals("no") || s.equals("0")) return false;
-        return null;
-    }
-
-    private boolean isTimestampValue(Object v) {
-        return coerceTimestamp(v) != null;
-    }
-
-    private Timestamp coerceTimestamp(Object v) {
-        if (v instanceof Timestamp ts) return ts;
-        if (v instanceof Instant instant) return Timestamp.from(instant);
-        if (v instanceof LocalDateTime ldt) return Timestamp.valueOf(ldt);
-        if (v instanceof LocalDate ld) return Timestamp.valueOf(ld.atStartOfDay());
-
-        String s = v.toString().trim();
-        if (s.isBlank()) return null;
-
-        try { return Timestamp.from(Instant.parse(s)); } catch (Exception ignored) {}
-        try { return Timestamp.from(OffsetDateTime.parse(s).toInstant()); } catch (Exception ignored) {}
-        try { return Timestamp.valueOf(LocalDateTime.parse(s)); } catch (Exception ignored) {}
-        try { return Timestamp.valueOf(LocalDate.parse(s).atStartOfDay()); } catch (Exception ignored) {}
-        return null;
-    }
 }

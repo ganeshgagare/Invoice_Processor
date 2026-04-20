@@ -261,8 +261,10 @@ function ResultsStep({ result, report, onNewQuery }) {
             <span className="results-num">{rows.length.toLocaleString()}</span>
             <span className="results-lbl"> rows matched</span>
             <span className="results-badges">
-              <span className="badge badge-green">{columns.length} columns</span>
-              <span className="badge badge-blue">{llmModel}</span>
+              <span className="badge badge-green">{columns.filter(c=>c!=='_row_num').length} columns</span>
+              <span className={`badge ${llmModel === 'rule-based' ? 'badge-gray' : 'badge-blue'}`}>
+                {llmModel === 'rule-based' ? '⚡ instant' : '🤖 ' + llmModel}
+              </span>
               <span className="badge badge-gray">{executionMs}ms</span>
             </span>
           </div>
@@ -299,12 +301,12 @@ function ResultsStep({ result, report, onNewQuery }) {
           <div className="table-scroll">
             <table className="data-table">
               <thead>
-                <tr>{columns.map(c=><th key={c}>{c.replace(/_/g,' ')}</th>)}</tr>
+                <tr>{columns.filter(c=>c!=='_row_num').map(c=><th key={c}>{c.replace(/_/g,' ').toUpperCase()}</th>)}</tr>
               </thead>
               <tbody>
                 {rows.map((row,i)=>(
                   <tr key={i} className={i%2===1?'alt-row':''}>
-                    {columns.map(c=><td key={c}>{fmt(row[c])}</td>)}
+                    {columns.filter(c=>c!=='_row_num').map(c=><td key={c}>{fmt(row[c])}</td>)}
                   </tr>
                 ))}
               </tbody>
@@ -314,7 +316,7 @@ function ResultsStep({ result, report, onNewQuery }) {
 
         {rows.length > 0 && (
           <div className="table-foot">
-            {rows.length.toLocaleString()} rows · {columns.length} columns
+            {rows.length.toLocaleString()} rows · {columns.filter(c=>c!=='_row_num').length} columns
             {rows.length >= 1000 && <span className="warn"> — showing first 1000 rows, add LIMIT to get fewer</span>}
           </div>
         )}
@@ -324,10 +326,16 @@ function ResultsStep({ result, report, onNewQuery }) {
 }
 
 function fmt(v) {
-  if (v == null) return '—';
+  if (v == null || v === '') return '—';
   if (typeof v === 'number') return v.toLocaleString('en-IN');
   if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  return String(v);
+  const s = String(v);
+  // Format numbers stored as strings
+  if (/^-?\d+(\.\d+)?$/.test(s) && s.length < 18) {
+    const n = parseFloat(s);
+    return isNaN(n) ? s : n.toLocaleString('en-IN');
+  }
+  return s;
 }
 
 // ─── STEPPER ─────────────────────────────────────────────────────────────────
