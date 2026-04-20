@@ -1,0 +1,33 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "GET,POST,PUT,DELETE,OPTIONS"
+            allowedHeaders: "*"
+            allowCredentials: false
+      routes:
+        - id: ingestion
+          uri: lb://ingestion-service
+          predicates:
+            - Path=/api/reports/**
+        - id: query
+          uri: lb://query-service
+          predicates:
+            - Path=/api/query/**
+        - id: export
+          uri: lb://export-service
+          predicates:
+            - Path=/api/export/**
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
